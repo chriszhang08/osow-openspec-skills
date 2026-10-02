@@ -19,14 +19,14 @@ The canonical description of that shape, the procedure for choosing the correct
 
 ## Skills
 
-| Skill | Planner-shape duty |
-|---|---|
-| `openspec-propose` | Mandates and writes the full shape; runs the self-check |
-| `openspec-new-change`, `openspec-ff-change` | Write the metadata right after scaffolding; ff runs the self-check |
-| `openspec-continue-change`, `openspec-update-change` | Keep `.openspec.yaml` and `## Depends On` coherent |
-| `openspec-verify-change` | Reports shape failures as CRITICAL |
-| `openspec-archive-change`, `openspec-bulk-archive-change` | Archived changes count as satisfied dependencies |
-| others | Reference the shape for awareness |
+| Skill                                                     | Planner-shape duty                                                 |
+| --------------------------------------------------------- | ------------------------------------------------------------------ |
+| `openspec-propose`                                        | Mandates and writes the full shape; runs the self-check            |
+| `openspec-new-change`, `openspec-ff-change`               | Write the metadata right after scaffolding; ff runs the self-check |
+| `openspec-continue-change`, `openspec-update-change`      | Keep `.openspec.yaml` and `## Depends On` coherent                 |
+| `openspec-verify-change`                                  | Reports shape failures as CRITICAL                                 |
+| `openspec-archive-change`, `openspec-bulk-archive-change` | Archived changes count as satisfied dependencies                   |
+| others                                                    | Reference the shape for awareness                                  |
 
 ## Using it as a submodule
 
