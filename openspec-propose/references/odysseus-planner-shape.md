@@ -53,9 +53,9 @@ be released. Decide it deliberately, per id:
    → it is already satisfied. You MAY still list it (it is recorded as
    satisfied, no edge); do not list it merely because it is "historically
    related".
-3. **Is the prerequisite an active change that is neither in this pull request
-   nor already planned in an earlier OSOW?** → the OSOW will be **refused
-   (P7)**. Either include that change's directory in the same pull request, or
+3. **Is the prerequisite an active change that is not in this pull request?**
+   → the OSOW will be **refused (P7)**, even if another OSOW has already
+   planned it. Either include that change's directory in the same pull request, or
    drop the dependency and explain the sequencing in the proposal.
 4. **Would this id close a cycle** (directly, or through an earlier OSOW)? →
    refused (P8). Remove one edge; the newer change depends on the older, never
@@ -104,7 +104,7 @@ lives in `.openspec.yaml` `repository:` only.
 | P4 | `base_branch:`, if present, is one legal branch name. | server `400` / approval |
 | P5 | Change id matches `^[a-z0-9]+(-[a-z0-9]+)*$`, ≤ 80 chars (branch becomes `odysseus/pr<N>-<id>`). | server `400` |
 | P6 | `tasks.md` exists. | server `400` |
-| P7 | Every `depends_on` id is: in the same pull request, already planned in an earlier OSOW, or archived. | server `400` |
+| P7 | Every `depends_on` id is: in the same pull request, or archived. | server `400` |
 | P8 | Store-wide graph stays acyclic. | server `400` |
 | P9 | The change is implementable in its one `repository` as one pull request. Split cross-repo work into separate changes linked by `depends_on`. | author |
 | P10 | A change belongs to one OSOW; a later PR amends it in place while unreleased. | server |
@@ -132,5 +132,8 @@ PY
 ```
 
 Then, for each id in `depends_on`, confirm `openspec/changes/<id>/` exists or
-`openspec/changes/archive/*-<id>/` exists (P7), and that the ids under
+`openspec/changes/archive/*-<id>/` exists (P7), and that an id resolving to an
+*active* (non-archived) directory is also one of the ids posted in this same
+pull request — an active directory existing elsewhere in the store no longer
+satisfies P7 on its own. Confirm too that the ids under
 `## Depends On` in `proposal.md` are the same set.

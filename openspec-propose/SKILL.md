@@ -55,7 +55,7 @@ Read `references/odysseus-planner-shape.md` before step 4 and run its self-check
    Also establish, before creating anything, the three planner inputs:
    - **Target repository** (`owner/name`, e.g. `chriszhang08/odysseus`): exactly one. If the work spans two repositories, tell the user it must be split into two changes wired by `depends_on` (P9) and agree the split before continuing.
    - **Base branch** (e.g. `uat`): the branch the implementation PR should target. Read `openspec/config.yaml` `context` and existing `.openspec.yaml` files for the store's convention; ask only if it is genuinely unclear. It may be omitted, but then a human must set it in the orchestrator panel before approval (P4) — say so in the output.
-   - **Direct prerequisites**: which other changes in this store (active or archived) must land before this one. Run `ls openspec/changes openspec/changes/archive` and read the proposals of any change that touches the same capabilities. Apply the decision procedure in `references/odysseus-planner-shape.md` § "Choosing the correct `depends_on` value". If a prerequisite is active, unplanned and not going into the same pull request, warn the user that the OSOW will be refused (P7) and agree a resolution.
+   - **Direct prerequisites**: which other changes in this store (active or archived) must land before this one. Run `ls openspec/changes openspec/changes/archive` and read the proposals of any change that touches the same capabilities. Apply the decision procedure in `references/odysseus-planner-shape.md` § "Choosing the correct `depends_on` value". If a prerequisite is active and not going into the same pull request (even if another OSOW already planned it), warn the user that the OSOW will be refused (P7) and agree a resolution.
 
    If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
 
@@ -207,7 +207,8 @@ After completing all artifacts, summarize:
 
 **Guardrails**
 - **Never finish with `.openspec.yaml` lacking a `depends_on:` list or a single `repository:`.** An absent `depends_on` is refused by Odysseus (P2), not defaulted to empty. `[]` is the correct value only when you have checked the store and found no direct prerequisite
-- **Never write a dependency id you have not verified exists** under `openspec/changes/` or `openspec/changes/archive/`. Never list an active, unplanned change that will not ship in the same pull request without warning the user (P7)
+- **Never write a dependency id you have not verified exists** under `openspec/changes/` or `openspec/changes/archive/`. Never list an active change that will not ship in the same pull request without warning the user (P7)
+- **Never depend on an active change that will not ship in this pull request**, even if it is already planned under a different OSOW — only same-pull-request or archived satisfy P7
 - **Never introduce a cycle** — if the change you depend on also depends on this one, one edge must go (P8)
 - **Never declare more than one repository**, and never put the repository only in prose. Split cross-repository work into separate changes (P9)
 - **`## Depends On` and `depends_on` MUST agree.** The heading is for humans; the YAML list is what Odysseus reads
