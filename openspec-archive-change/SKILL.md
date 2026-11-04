@@ -1,7 +1,7 @@
 ---
 name: openspec-archive-change
-description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
-allowed-tools: Bash(openspec:*)
+description: Audit open OpenSpec changes against their PRs, sync specs, and archive the merged ones. Use when the user wants to finalize and archive a change after implementation is complete.
+allowed-tools: Bash(openspec:*), Bash(gh pr list:*), Bash(git add:*), Bash(git commit:*)
 license: MIT
 compatibility: Requires openspec CLI. Requires an OSOW planning store (Odysseus OSOW planner prerequisites).
 metadata:
@@ -13,13 +13,13 @@ metadata:
 **OSOW planner shape (this store)**: Changes here are planned by Odysseus from `.openspec.yaml` (`depends_on` list, one `repository`, optional `base_branch`) plus `tasks.md` and a `## Depends On` heading in `proposal.md`. Whenever this skill touches or evaluates a change, keep those fields present and mutually consistent; a change missing `depends_on` or `repository` refuses the whole OSOW of the pull request it ships in. See `../openspec-propose/references/odysseus-planner-shape.md` for the required shape and self-check. Archiving note: an archived change counts as an already-satisfied dependency for other changes (P7), and a pull request that only archives changes records no OSOW (P11). Do not archive a change in the same pull request that first plans it (P1).
 
 
-Archive a completed change in the experimental workflow.
+Audit open changes against their pull requests, then archive the ones that have merged: sync specs, validate, archive, and commit.
 
 **Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
 `<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve the full path from each delta spec when resolving its main spec.
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If the user asks to audit or archive "all" or "merged" changes, audit every open change in `openspec/changes/` (excluding `archive/`) and run steps 2–8 for each one that passes the PR gate. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -62,7 +62,19 @@ Archive a completed change in the experimental workflow.
    or archive summaries unless the user separately asks for it. These are
    prompt-level behavior contracts, not enforceable checks.
 
-2. **Check artifact completion status**
+2. **Audit the change's PR**
+
+   Find the change's pull request:
+   ```bash
+   gh pr list --search "<change-id>" --state all
+   ```
+   - **No PR found**: report it and leave the change open unless the user says otherwise.
+   - **PR not merged** (open or closed unmerged): leave the change open, report its PR and state, and skip the remaining steps for this change.
+   - **PR merged**: continue. Step 4 asks before archiving if any tasks are unchecked.
+
+   When auditing several changes, collect the results into one table (change, PR, state, action) and show it before archiving anything.
+
+3. **Check artifact completion status**
 
    Run `openspec status --change "<name>" --json` to check artifact completion.
 
@@ -76,20 +88,20 @@ Archive a completed change in the experimental workflow.
    - Ask the user to confirm they want to proceed
    - Proceed if user confirms
 
-3. **Check task completion status**
+4. **Check task completion status**
 
    Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
 
    Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
 
-   **If incomplete tasks found:**
+   **If incomplete tasks found** (even though the PR is merged):
    - Display warning showing count of incomplete tasks
-   - Ask the user to confirm they want to proceed
-   - Proceed if user confirms
+   - ASK the user whether to archive; never archive past unchecked tasks without an explicit yes
+   - Proceed only if user confirms
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+5. **Assess delta spec sync state**
 
    Use `artifactPaths.specs.existingOutputPaths` from status JSON as the only
    delta-spec source. If the `specs` entry is missing or
@@ -97,7 +109,7 @@ Archive a completed change in the experimental workflow.
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)
+   - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 3, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
@@ -120,7 +132,7 @@ Archive a completed change in the experimental workflow.
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching `specs` instructions again. Do not delegate it to a background task — step 5 would move `changeRoot` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching `specs` instructions again. Do not delegate it to a background task — step 6 would move `changeRoot` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
 
    Then re-run the comparison from the top of this step against every capability that has a delta spec in `artifactPaths.specs.existingOutputPaths` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
@@ -130,7 +142,9 @@ Archive a completed change in the experimental workflow.
 
    If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and `changeRoot` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
 
-5. **Perform the archive**
+   After a sync, run `openspec validate` (with the same selected-root flags). If validation fails, report the errors and stop — do not archive.
+
+6. **Perform the archive**
 
    Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
    ```bash
@@ -147,10 +161,15 @@ Archive a completed change in the experimental workflow.
    mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
    ```
 
-6. **Display summary**
+7. **Commit**
+
+   Commit the archive move and any synced main specs in one commit with the message `chore(openspec): archive <ids>`, where `<ids>` is the comma-separated list of change ids archived in this run. Stage only the archived change directories and the spec files the sync touched.
+
+8. **Display summary**
 
    Show archive completion summary including:
    - Change name
+   - PR (number and merged state)
    - Schema that was used
    - Archive location
    - Whether specs were synced (if applicable)
@@ -164,7 +183,8 @@ Archive a completed change in the experimental workflow.
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from `planningHome.changesDir`/<target-name>/
-**Specs:** <"✓ Synced to main specs" only if the step 4 verification passed; otherwise "No delta specs" or "Sync skipped">
+**PR:** <#number, merged>
+**Specs:** <"✓ Synced to main specs" only if the step 5 verification and `openspec validate` passed; otherwise "No delta specs" or "Sync skipped">
 
 <"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
 ```
@@ -172,7 +192,9 @@ Archive a completed change in the experimental workflow.
 **Guardrails**
 - Announce the selected change; prompt for selection when it is ambiguous
 - Use artifact graph (openspec status --json) for completion checking
-- Don't block archive on warnings - just inform and confirm
+- Never archive a change whose PR is unmerged; leave it open and report it
+- Never archive a merged change with unchecked tasks without asking the user first
+- Don't block archive on other warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven)
