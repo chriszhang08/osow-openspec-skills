@@ -42,6 +42,32 @@ batch. If it was not — or if a step here needs a credential your run does not
 hold — say so rather than working around it: the grant is a decision somebody
 made, and routing around it is worse than failing.
 
+## How Odysseus learns the pull request opened
+
+Opening the pull request is not enough on its own. A workflow in the target
+repository, `.github/workflows/odysseus-publication-report.yml`, reports it:
+on `pull_request` `opened`/`reopened` for branches starting with `odysseus/`,
+it POSTs three fields — `repository`, `branch`, `pull_request_number` — to
+`$ODYSSEUS_URL/api/orchestrator/publication-report`. It sends no code; Odysseus
+reads the pull request from GitHub itself.
+
+**The publication credential is sent as a bearer token:**
+
+```
+Authorization: Bearer $ODYSSEUS_PUBLICATION_CREDENTIAL
+```
+
+The old `X-Odysseus-Publication-Credential` header is no longer accepted and
+gets a 401. The repository secrets are `ODYSSEUS_URL` and
+`ODYSSEUS_PUBLICATION_CREDENTIAL`. If the workflow is missing or still uses the
+old header, the batch fails as `unreported` once its run finishes.
+
+Do not substitute `GITHUB_TOKEN`, Infisical credentials or any other credential
+for the publication credential, and do not retry a refused report in a loop —
+Odysseus gives the same refusal for every failure. A report is a manual
+fallback only: if the workflow did not run, post the same three fields once with
+the bearer header and tell the user the result.
+
 ## Steps
 
 1. Fetch, and create the base branch from the repository's default branch if
