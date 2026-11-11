@@ -9,7 +9,8 @@ description: How this repository wants an Odysseus change run to publish its wor
 edit it.** It is a starting point, not a standard: the whole reason this lives
 here rather than in Odysseus is that publishing is repository-specific.
 Odysseus supplies the _variables_ — which change, which branch, which base —
-and this file supplies the _procedure_.
+and this file supplies the _procedure_. Odysseus supplies no credentials; the
+agent-canvas backend server provides them in your environment.
 
 ## What Odysseus gives you, and what you must not change
 
@@ -28,19 +29,30 @@ opening is how Odysseus learns this change finished. A pull request from a
 different branch, or onto a different base, is refused — the change stays
 unpublished and its release halts.
 
-## The credential you push with
+## The credentials you use, and where they come from
 
-Odysseus no longer injects credentials into a run per dispatch. They are
-configured once, ambiently, on the OpenHands agent server itself (see
-`docs/openhands-agent-server.md`) and persist there at rest across every run —
-Odysseus keeps no credential vault and no baseline set of its own. A batch
-only sees the secrets a human ticked for it in the orchestrator panel; nothing
-is attached by default.
+Odysseus does not supply credentials. It injects nothing into a run and keeps
+no credential vault of its own. Every secret this skill uses is provided by the
+**agent-canvas backend server**, which puts it in your run's environment.
+Read each one from your own environment by the exact name below:
 
-**The one you push with is `GITHUB_TOKEN`.** It must have been ticked for this
-batch. If it was not — or if a step here needs a credential your run does not
-hold — say so rather than working around it: the grant is a decision somebody
-made, and routing around it is worse than failing.
+| Variable | Used for |
+| --- | --- |
+| `GITHUB_TOKEN` | Fetching, pushing the branch and opening the pull request |
+| `ODYSSEUS_URL` | The manual publication-report fallback (below) |
+| `ODYSSEUS_PUBLICATION_CREDENTIAL` | The bearer token for that fallback |
+
+**Check before you start.** Confirm each variable is set and non-empty (for
+example `[ -n "$GITHUB_TOKEN" ]`). Never print, echo or log its value.
+
+**If one is missing, flag it in the conversation.** agent-canvas should
+always provide these, so a missing variable is a misconfiguration of the
+backend server, not something for you to fix. State which variable is
+missing and which step it blocks. Do not ask Odysseus for a credential,
+borrow another one (a personal token, Infisical credentials, a
+credential helper, a different secret), mint one, or otherwise work around
+the gap. Finish whatever work does not need the missing secret, then stop
+and report it.
 
 ## How Odysseus learns the pull request opened
 
@@ -65,11 +77,16 @@ old header, the batch fails as `unreported` once its run finishes.
 Do not substitute `GITHUB_TOKEN`, Infisical credentials or any other credential
 for the publication credential, and do not retry a refused report in a loop —
 Odysseus gives the same refusal for every failure. A report is a manual
-fallback only: if the workflow did not run, post the same three fields once with
-the bearer header and tell the user the result.
+fallback only: if the workflow did not run, post the same three fields once to
+`$ODYSSEUS_URL/api/orchestrator/publication-report` with the bearer header,
+using `ODYSSEUS_URL` and `ODYSSEUS_PUBLICATION_CREDENTIAL` from your
+environment, and tell the user the result. If either is missing, flag it as
+described above instead of posting.
 
 ## Steps
 
+0. Check that the credentials above are in your environment. Flag any that
+   are missing.
 1. Fetch, and create the base branch from the repository's default branch if
    it does not exist yet. A base branch is chosen by a human in the Odysseus
    panel and may not have been created; Odysseus has no push credential into
