@@ -3,7 +3,14 @@
 This is the shape every active change under `openspec/changes/<id>/` in this
 store MUST have before it is merged to `master`. Odysseus plans a merged
 planning pull request as one **OSOW** (`POST /api/orchestrator/stores/{store_id}/osows`)
-by reading each touched change's `.openspec.yaml` at the merge commit. No model
+by reading each touched change's `.openspec.yaml` at the merge commit. The same
+checks also run on every open planning pull request as a **dry run**
+(`POST /api/orchestrator/stores/{store_id}/osows/dry-run`, from the store's
+`osow-check-on-pr.yml`): it gives the verdict recording would give and records
+nothing, so an open or abandoned pull request leaves nothing in the planner. A
+refusal there is a **failing check on the pull request** that lists every
+failing change, its prerequisite and the reason — fix them all before merging.
+No model
 is consulted, nothing is inferred from prose, and one change that fails a
 prerequisite refuses the **whole** OSOW for that pull request.
 
@@ -55,7 +62,9 @@ be released. Decide it deliberately, per id:
    related".
 3. **Is the prerequisite an active change that is not in this pull request?**
    → the OSOW will be **refused (P7)**, even if another OSOW has already
-   planned it. Either include that change's directory in the same pull request, or
+   planned it. No path creates a dependency between OSOWs — not declared
+   metadata, and not a human edit in the DAG editor, which refuses one too.
+   Ordering across OSOWs is decided by the person releasing, not recorded. Either include that change's directory in the same pull request, or
    drop the dependency and explain the sequencing in the proposal.
 4. **Would this id close a cycle** (directly, or through an earlier OSOW)? →
    refused (P8). Remove one edge; the newer change depends on the older, never
@@ -99,12 +108,12 @@ lives in `.openspec.yaml` `repository:` only.
 | # | What the author must do | Enforced |
 |---|---|---|
 | P1 | Land the change on `master` through a pull request on an `odysseus/`-prefixed branch. Never push a change to `master` directly. Do not archive a change in the pull request that plans it. | workflow / server |
-| P2 | `.openspec.yaml` has `depends_on:` as a list (`[]` is fine, absent is not). | server `400` |
+| P2 | `.openspec.yaml` has `depends_on:` as a list (`[]` is fine, absent is not). | PR check; server `400` |
 | P3 | `.openspec.yaml` has exactly one `repository: owner/name`. | server `400` |
 | P4 | `base_branch:`, if present, is one legal branch name. | server `400` / approval |
 | P5 | Change id matches `^[a-z0-9]+(-[a-z0-9]+)*$`, ≤ 80 chars (branch becomes `odysseus/pr<N>-<id>`). | server `400` |
 | P6 | `tasks.md` exists. | server `400` |
-| P7 | Every `depends_on` id is: in the same pull request, or archived. | server `400` |
+| P7 | Every `depends_on` id is: in the same pull request, or archived. Never a change of another OSOW, by any path. | dry-run check on the PR; server `400` on merge |
 | P8 | Store-wide graph stays acyclic. | server `400` |
 | P9 | The change is implementable in its one `repository` as one pull request. Split cross-repo work into separate changes linked by `depends_on`. | author |
 | P10 | A change belongs to one OSOW; a later PR amends it in place while unreleased. | server |

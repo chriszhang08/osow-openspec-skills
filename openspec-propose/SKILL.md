@@ -25,7 +25,7 @@ I'll create a change with the artifacts your schema defines. With the default sp
 
 When the user is ready to implement, they must start the apply workflow explicitly.
 
-**OSOW planner shape (MANDATORY in this store)**: This store is a planning store consumed by Odysseus. When a pull request touching a change merges to the store's default branch, a workflow POSTs it to `POST /api/orchestrator/stores/{store_id}/osows`, and Odysseus builds the OSOW graph **only** from each change's `.openspec.yaml`. A proposal produced by this skill is therefore incomplete — and will refuse the entire pull request's OSOW — unless it satisfies **every** planner prerequisite in `references/odysseus-planner-shape.md`. In particular the proposal MUST:
+**OSOW planner shape (MANDATORY in this store)**: This store is a planning store consumed by Odysseus. When a pull request touching a change merges to the store's default branch, a workflow POSTs it to `POST /api/orchestrator/stores/{store_id}/osows`, and Odysseus builds the OSOW graph **only** from each change's `.openspec.yaml`. On an open planning pull request the same checks run as a dry run (`.../osows/dry-run`, recording nothing); a refusal shows as a failing PR check listing every failure, and no path (declared or a human edit) may create a dependency on another OSOW. A proposal produced by this skill is therefore incomplete — and will refuse the entire pull request's OSOW — unless it satisfies **every** planner prerequisite in `references/odysseus-planner-shape.md`. In particular the proposal MUST:
 
 - write a `depends_on:` YAML **list** into `.openspec.yaml` (`[]` when there is no prerequisite; an absent key is a `400` refusal, P2), whose ids are the **correct, deliberately chosen** direct prerequisites of this change (see "Choosing the correct `depends_on` value" in the reference), each an exact existing change directory name;
 - write exactly one `repository: owner/name` into `.openspec.yaml` (P3), and optionally one `base_branch:` (P4);
@@ -208,7 +208,7 @@ After completing all artifacts, summarize:
 **Guardrails**
 - **Never finish with `.openspec.yaml` lacking a `depends_on:` list or a single `repository:`.** An absent `depends_on` is refused by Odysseus (P2), not defaulted to empty. `[]` is the correct value only when you have checked the store and found no direct prerequisite
 - **Never write a dependency id you have not verified exists** under `openspec/changes/` or `openspec/changes/archive/`. Never list an active change that will not ship in the same pull request without warning the user (P7)
-- **Never depend on an active change that will not ship in this pull request**, even if it is already planned under a different OSOW — only same-pull-request or archived satisfy P7
+- **Never depend on an active change that will not ship in this pull request**, even if it is already planned under a different OSOW — only same-pull-request or archived satisfy P7, and no path creates a cross-OSOW dependency
 - **Never introduce a cycle** — if the change you depend on also depends on this one, one edge must go (P8)
 - **Never declare more than one repository**, and never put the repository only in prose. Split cross-repository work into separate changes (P9)
 - **`## Depends On` and `depends_on` MUST agree.** The heading is for humans; the YAML list is what Odysseus reads
